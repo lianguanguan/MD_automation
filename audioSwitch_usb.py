@@ -54,7 +54,7 @@ def init_case():
 # 初始化命令行
 def init_cli(cli_type, child):
     if cli_type is 'bt':
-        send_command(child, 'telnet 10.79.33.30')
+        send_command(child, 'telnet 10.79.33.36')
         send_command(child, 'root')
         send_command(child, 'btcli')
         send_command(child, 'init-client me')
@@ -102,12 +102,122 @@ def init_usb():
 combine_case = lambda x, code=',': reduce(lambda x, y: [str(i) + code + str(j) for i in x for j in y], x)
 
 
+def make_call_2_incomings(call_parameter):
+    if call_parameter['active_source'] == 'source1':
+        if call_parameter['first_call'] == 'source2':
+            make_call_on_source2('ring')
+            time.sleep(2)
+            make_call_on_source3('ring')
+        else:
+            make_call_on_source3('ring')
+            time.sleep(2)
+            make_call_on_source2('ring')
+
+        set_active_source('source1')
+        make_call_on_source1(call_parameter['S1_Call_Status'])
+    elif call_parameter['active_source'] == 'source2':
+        if call_parameter['first_call'] == 'source1':
+            make_call_on_source1('ring')
+            time.sleep(2)
+            make_call_on_source3('ring')
+        else:
+            make_call_on_source3('ring')
+            time.sleep(2)
+            make_call_on_source1('ring')
+
+        set_active_source('source2')
+        make_call_on_source1(call_parameter['S2_Call_Status'])
+    else:
+        call_parameter['active_source'] == 'source3'
+        if call_parameter['first_call'] == 'source1':
+            make_call_on_source1('ring')
+            time.sleep(2)
+            make_call_on_source2('ring')
+        else:
+            make_call_on_source2('ring')
+            time.sleep(2)
+            make_call_on_source1('ring')
+
+        set_active_source('source3')
+        make_call_on_source1(call_parameter['S3_Call_Status'])
+
+
+def compute_expected_result_2_incomings(call_parameters):
+    expected_result = {}
+    tmp = {}
+    expected_result['active_source'] = call_parameters['active_source']
+    tmp['call_state'] = call_parameters['S1_Call_Status']
+    tmp['led_state'] = 'none'
+    tmp['expected_event'] = 'none'
+    expected_result['source1'] = tmp.copy()
+
+    tmp['call_state'] = call_parameters['S2_Call_Status']
+    tmp['led_state'] = 'none'
+    tmp['expected_event'] = 'none'
+    expected_result['source2'] = tmp.copy()
+
+    tmp['call_state'] = call_parameters['S3_Call_Status']
+    tmp['led_state'] = 'none'
+    tmp['expected_event'] = 'none'
+    expected_result['source3'] = tmp.copy()
+
+    # handle incoming call
+    if call_parameters['call_button'] == 'answer':
+        call_state = 'hook'
+    else:
+        call_state = 'idle'
+    tmp['call_state'] = call_state
+    tmp['led_state'] = 'none'
+    tmp['expected_event'] = call_parameters['call_button']
+    expected_result[call_parameters['first_call']] = tmp.copy()
+
+    if expected_result[call_parameters['active_source']]['call_state'] == 'hook' and call_parameters['call_button'] == 'answer':
+        tmp['call_state'] = 'hold'
+        tmp['led_state'] = 'none'
+        tmp['expected_event'] = 'hold'
+        expected_result[call_parameters['active_source']] = tmp.copy()
+
+    return expected_result
+
+
+def travel_cases_2_incomings(cases_2_incomings):
+    count = 0
+    success_num = 0
+    for call_parameters in cases_2_incomings:
+        make_call_2_incomings(call_parameters)
+
+        expect_res = compute_expected_result_2_incomings(call_parameters)
+
+        time.sleep(0.1)
+        res = press_key_event(call_parameters)
+
+        res = check_first(expect_res)
+        if res is False:
+            print "1st Check False: case %d fail!" % count
+        else:
+            success_num += 1
+            print "1st Check Success !!!"
+
+        reset_case()
+        time.sleep(1)
+
+
+def generate_cases_2_incomings():
+    cases = [{'active_source':'source1', 'S1_Call_Status':'idle', 'S2_Call_Status':'ring', 'S3_Call_Status':'ring', 'call_button':'answer', 'first_call':'source3'}]
+    return cases
+
+
 def start_automation_audio_switch():
+    pass_rate = 0
     call_event_list = ['idle', 'ring', 'hold', 'hook']
     active_source_list = ['source1', 'source2', 'source3']
     key_list = ['answer', 'reject']
-    automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
-    pass_rate = travel_cases(automation_cases)
+    #automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
+    #pass_rate = travel_cases(automation_cases)
+
+    cases_2_incomings = generate_cases_2_incomings()
+    print cases_2_incomings
+    travel_cases_2_incomings(cases_2_incomings)
 
     return pass_rate
 
