@@ -129,20 +129,32 @@ def make_call_as_per_parameters(call_parameters):
 
     if active_source == 'source1':
         make_call_on_source2(call_parameters['S2_Call_Status'])
+        led2 = update_led_nonactive_source(call_parameters['S2_Call_Status'])
         make_call_on_source3(call_parameters['S3_Call_Status'])
+        led3 = update_led_nonactive_source(call_parameters['S3_Call_Status'])
         set_active_source(active_source)
         make_call_on_source1(call_parameters['S1_Call_Status'])
+        led1 = update_led_active_source(call_parameters['S1_Call_Status'])
     elif active_source == 'source2':
         make_call_on_source1(call_parameters['S1_Call_Status'])
+        led1 = update_led_nonactive_source(call_parameters['S1_Call_Status'])
         make_call_on_source3(call_parameters['S3_Call_Status'])
+        led3 = update_led_nonactive_source(call_parameters['S3_Call_Status'])
         set_active_source(active_source)
         make_call_on_source2(call_parameters['S2_Call_Status'])
+        led2 = update_led_active_source(call_parameters['S2_Call_Status'])
     elif active_source == 'source3':
         make_call_on_source1(call_parameters['S1_Call_Status'])
+        led1 = update_led_nonactive_source(call_parameters['S1_Call_Status'])
         make_call_on_source2(call_parameters['S2_Call_Status'])
+        led2 = update_led_nonactive_source(call_parameters['S2_Call_Status'])
         set_active_source(active_source)
         make_call_on_source3(call_parameters['S3_Call_Status'])
-
+        led3 = update_led_active_source(call_parameters['S3_Call_Status'])
+    led_sequence = compute_led_sequence(led1, led2, led3)
+    res = check_makecall_result_through_led(led_sequence)
+    if res == False:
+        print 'Make call led check fail !!'
     return 0
 
 
@@ -214,17 +226,17 @@ def compute_expect_result(call_parameters):
     tmp = {}
     expected_result['active_source'] = call_parameters['active_source']
     tmp['call_state'] = call_parameters['S1_Call_Status']
-    tmp['led_state'] = 'none'
+    tmp['led_state'] = update_led_nonactive_source(call_parameters['S1_Call_Status'])
     tmp['expected_event'] = 'none'
     expected_result['source1'] = tmp.copy()
 
     tmp['call_state'] = call_parameters['S2_Call_Status']
-    tmp['led_state'] = 'none'
+    tmp['led_state'] = update_led_nonactive_source(call_parameters['S2_Call_Status'])
     tmp['expected_event'] = 'none'
     expected_result['source2'] = tmp.copy()
 
     tmp['call_state'] = call_parameters['S3_Call_Status']
-    tmp['led_state'] = 'none'
+    tmp['led_state'] = update_led_nonactive_source(call_parameters['S3_Call_Status'])
     tmp['expected_event'] = 'none'
     expected_result['source3'] = tmp.copy()
 
@@ -233,12 +245,12 @@ def compute_expect_result(call_parameters):
         if condition['incoming_in_as']:    # active source has an incoming call
             if condition['call_button'] == 'single':
                 tmp['call_state'] = 'hook'
-                tmp['led_state'] = 'none'
+                tmp['led_state'] = update_led_active_source('hook')
                 tmp['expected_event'] = 'answer'
                 expected_result[call_parameters['active_source']] = tmp.copy()
             else:
                 tmp['call_state'] = 'idle'
-                tmp['led_state'] = 'none'
+                tmp['led_state'] = update_led_active_source('idle')
                 tmp['expected_event'] = 'reject'
                 expected_result[call_parameters['active_source']] = tmp.copy()
         else:  # 在非active source有incoming call
@@ -246,12 +258,12 @@ def compute_expect_result(call_parameters):
                 incoming_source = get_incoming_source(call_parameters)
                 if condition['call_button'] == 'single':
                     tmp['call_state'] = 'hook'
-                    tmp['led_state'] = 'none'
+                    tmp['led_state'] = update_led_active_source('hook')
                     tmp['expected_event'] = 'answer'
                     expected_result[incoming_source] = tmp.copy()
                 else:
                     tmp['call_state'] = 'idle'
-                    tmp['led_state'] = 'none'
+                    tmp['led_state'] = update_led_active_source('idle')
                     tmp['expected_event'] = 'reject'
                     expected_result[incoming_source] = tmp.copy()
 
@@ -262,21 +274,24 @@ def compute_expect_result(call_parameters):
 
             if expected_result[call_parameters['active_source']]['call_state'] == 'hook' and condition['call_button'] == 'single':  # active source有active call
                 tmp['call_state'] = 'hold'
-                tmp['led_state'] = 'none'
+                tmp['led_state'] = update_led_active_source('hold')
                 tmp['expected_event'] = 'hold'
                 expected_result[call_parameters['active_source']] = tmp.copy()
 
     else:
         if condition['idle_in_as'] and condition['call_button'] == 'single':  # 没有incoming call， 当前source idle
             expected_result[call_parameters['active_source']]['expected_event'] = 'off_hook'
+            expected_result[call_parameters['active_source']]['led_state'] = update_led_active_source('hook')
         elif condition['hook_in_as'] and condition['call_button'] == 'single':  # 没有incoming call， 当前source有active call
             expected_result[call_parameters['active_source']]['call_state'] = 'hold'
             expected_result[call_parameters['active_source']]['expected_event'] = 'hold'
+            expected_result[call_parameters['active_source']]['led_state'] = update_led_active_source('hold')
         elif condition['hold_in_as'] and condition['call_button'] == 'single':  # 没有incoming call， 当前source有hold call
             expected_result[call_parameters['active_source']]['call_state'] = 'hook'
             expected_result[call_parameters['active_source']]['expected_event'] = 'resume'
-
+            expected_result[call_parameters['active_source']]['led_state'] = update_led_active_source('hook')
     return expected_result
+
 
 
 def press_key_event(call_parameters):
@@ -316,7 +331,59 @@ def check_first(expect_res):
 
 def check_second(expect_res):
     return True
+def send_get_led_message_via_usb2():
+    usb2_dev.write([0x0C,0x02])
+def update_led_nonactive_source(call_state):
+    led={'white': 'none', 'green': 'none'}
+    if call_state == 'idle':
+        led={'white': 'off', 'green': 'off'}
+    elif call_state == 'hook':
+        led={'white': 'off', 'green': 'pulse'}
+    elif call_state == 'hold':
+        led={'white': 'off', 'green': 'pulse'}
+    elif call_state == 'ring':
+        led={'white': 'off', 'green': 'blinking'}
+    return led
 
+def update_led_active_source(call_state):
+    led={'white': 'none', 'green': 'none'}
+    if call_state == 'idle':
+        led={'white': 'on', 'green': 'off'}
+    elif call_state == 'hook':
+        led={'white': 'off', 'green': 'pulse'}
+    elif call_state == 'hold':
+        led={'white': 'off', 'green': 'pulse'}
+    elif call_state == 'ring':
+        led={'white': 'blinking', 'green': 'blinking'}
+    return led
+
+def compute_led_sequence(led1,led2,led3):
+    led_dic={'off':0,'on':1,'blinking':2,'breathing':3,'knock_knock_blink':4,'mute_blinking':5,'running':6,'pulse':7,'panic_blinking':8}
+    led_sequence={led_dic[led1['white']],led_dic[led1['green']],led_dic[led2['white']],led_dic[led2['green']],led_dic[led3['white']],led_dic[led3['green']]}
+    return led_sequence
+
+def check_makecall_result_through_led(led_sequence):
+    send_get_led_message_via_usb2()
+    time.sleep(0.2)
+
+    global g_usb2_timeout
+
+    timer = threading.Timer(4, rx_time_out_usb2)
+    timer.start()
+    g_usb2_timeout = False
+    while not g_usb2_timeout:
+        receive_data = usb2_dev.read(16)
+        if receive_data and receive_data[0] == 0xd and receive_data[1] == 0x02:
+            for index in range(8,14):
+                receive_data[index] != led_sequence[index-8]
+                return False
+                timer.cancel()
+            return True
+        else:
+            print 'Report ID missed or wrong'
+            return False
+    print 'Time out for led'
+    return False
 
 def reset_usb1():
     usb1_dev.write([0x09, 0x00])
