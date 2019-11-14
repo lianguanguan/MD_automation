@@ -212,8 +212,12 @@ def start_automation_audio_switch():
     call_event_list = ['idle', 'ring', 'hold', 'hook']
     active_source_list = ['source1', 'source2', 'source3']
     key_list = ['answer', 'reject']
-    automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
-    pass_rate = travel_cases(automation_cases)
+    #automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
+    #pass_rate = travel_cases(automation_cases)
+
+    cases_2_incomings = generate_cases_2_incomings()
+    print cases_2_incomings
+    travel_cases_2_incomings(cases_2_incomings)
 
     #cases_2_incomings = generate_cases_2_incomings()
     #print cases_2_incomings
