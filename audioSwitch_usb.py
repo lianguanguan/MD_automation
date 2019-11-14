@@ -575,7 +575,7 @@ def reset_case():
 
 
 def travel_cases(automation_cases):
-    test_cases = ['source1,idle,ring,idle,reject','source1,ring,idle,idle,answer','source1,idle,ring,idle,answer','source1,ring,idle,idle,reject']
+    test_cases = ['source1,idle,ring,idle,answer']
     count = 0
     success_num = 0
     failed_case_1st = []
