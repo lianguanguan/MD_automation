@@ -212,12 +212,12 @@ def start_automation_audio_switch():
     call_event_list = ['idle', 'ring', 'hold', 'hook']
     active_source_list = ['source1', 'source2', 'source3']
     key_list = ['answer', 'reject']
-    #automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
-    #pass_rate = travel_cases(automation_cases)
+    automation_cases = combine_case([active_source_list, call_event_list, call_event_list, call_event_list, key_list])
+    pass_rate = travel_cases(automation_cases)
 
-    cases_2_incomings = generate_cases_2_incomings()
-    print cases_2_incomings
-    travel_cases_2_incomings(cases_2_incomings)
+    #cases_2_incomings = generate_cases_2_incomings()
+    #print cases_2_incomings
+    #travel_cases_2_incomings(cases_2_incomings)
 
     #cases_2_incomings = generate_cases_2_incomings()
     #print cases_2_incomings
@@ -445,6 +445,8 @@ def check_first(expect_res):
 
 
 def check_second(expect_res):
+    ledstatuschange(expect_res)
+    time.sleep(1)
     led_sequence=compute_led_sequence(expect_res['source1']['led_state'],expect_res['source2']['led_state'],expect_res['source3']['led_state'])
     res=check_answercall_result_through_led(led_sequence)
     if res == False:
@@ -541,6 +543,13 @@ def check_answercall_result_through_led(led_sequence):
             #return False
     print 'Time out for answer call led'
     return False
+
+def ledstatuschange(expect_res):
+    make_call_on_source1(expect_res['source1']['call_state'])
+    make_call_on_source2(expect_res['source2']['call_state'])
+    make_call_on_source3(expect_res['source3']['call_state'])
+    return True
+
 def reset_usb1():
     usb1_dev.write([0x09, 0x00])
 
